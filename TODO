@@ -1,0 +1,8 @@
+
+ * Worker threads separate to the main server process.
+ * Use macros to make commands more declarative - Not very happy with this at the moment.
+ * Different types for database values.
+ * Expand supported commands.
+ * Support pipelining.
+ * Handle WouldBlock errors on TCP writes.
+ * Add key expiry to the event loop.

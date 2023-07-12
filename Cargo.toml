@@ -1,0 +1,16 @@
+[package]
+name = "sider"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+env_logger = "0.10.0"
+log = "0.4.18"
+mio = { version = "0.8.8", features = ["net", "os-poll"] }
+phf = "0.11.1"
+phf_macros = "0.11.1"
+command_macro = { version = "0.1.0", path = "command_macro" }
+sider_command = { path = "sider_command" }
+chrono = "0.4.26"

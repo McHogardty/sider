@@ -1,0 +1,17 @@
+[package]
+name = "command_macro"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+syn = "2.0"
+quote = "1.0"
+devise = "0.4.1"
+proc-macro2 = "1.0.60"
+convert_case = "0.6.0"
+sider_command = { path = "../sider_command" }

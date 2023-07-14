@@ -109,6 +109,12 @@ impl Server {
                     },
                     CLIENT_REQUEST_QUEUE => {
                         while let Some((client_token, request)) = client_request_queue.pop_front() {    
+                            let response = match request {
+                                RESPType::Error(e) => RESPType::Error(Bytes::from(e)),
+                                r => handle_command(&mut db, r)
+                            };
+        
+                            serialize(&response, &mut self.clients.get_mut(&client_token).unwrap().connection)?;
                         }
                     },
                     token => {
@@ -133,16 +139,8 @@ impl Server {
 
                             let result = RESPParser::parse(&client.query_buffer);
 
-                            let response = match result {
-                                RESPType::Error(e) => RESPType::Error(Bytes::from(e)),
-                                r => handle_command(&mut db, r)
-                            };
-        
-                            serialize(&response, &mut client.connection)?;
-
-
-                            // client_request_queue.push_back((token, result));
-                            // client_request_waker.wake()?;
+                            client_request_queue.push_back((token, result));
+                            client_request_waker.wake()?;
                         }
                     }
                 }

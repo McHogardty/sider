@@ -134,6 +134,7 @@ impl Server {
 
                             if num_bytes_read == 0 {
                                 poll.registry().deregister(&mut client.connection)?;
+                                self.clients.remove(&token);
                                 continue;
                             }
 

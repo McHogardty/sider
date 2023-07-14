@@ -211,19 +211,6 @@ impl DB {
         self.map.get(key)
     }
 
-    pub fn get_mut(&mut self, key: &Vec<u8>) -> Option<&mut DBEntry> {
-        if let Some(e) = self.expiring_entries.get(key) {
-            if e <= &Utc::now() {
-                self.expiring_entries.remove(key);
-                self.map.remove(key);
-                return None;
-            }
-        };
-
-        self.map.get_mut(key)
-
-    }
-
     pub fn get_or_insert(&mut self, key: Vec<u8>, expiry: ExpiryFlag, existence_check: ExistenceFlag) -> Result<&mut DBEntry, DBError> {
         let k = Rc::new(key);
 

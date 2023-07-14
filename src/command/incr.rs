@@ -5,7 +5,7 @@ use bytes::Bytes;
 use command_macro::command;
 
 use sider_command::RESPType;
-use crate::db::{DBError, DBString};
+use crate::db::DBError;
 
 use super::super::db::DB;
 

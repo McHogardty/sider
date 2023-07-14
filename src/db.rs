@@ -44,6 +44,13 @@ impl DBString {
 }
 
 
+impl From<i64> for DBString {
+    fn from(value: i64) -> Self {
+        Self::Integer(value)
+    }
+}
+
+
 /// The underlying database implementation.
 /// 
 /// Each key/value pair in the database is stored as a mapping from a String to a DBEntry.

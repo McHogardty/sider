@@ -1,11 +1,12 @@
 
+use bytes::Bytes;
 use sider_command::*;
 use super::super::db::DB;
 
 
 pub struct Command<'a> {
     pub name: &'a str,
-    pub handler: fn(Vec<RESPType>, &mut DB) -> RESPType,
+    pub handler: fn(Vec<RESPType<Vec<u8>>>, &mut DB) -> RESPType<Bytes>,
     pub arity: i64,
     pub flags: &'a [Flag],
     pub first_key: u64,

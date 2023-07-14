@@ -1,10 +1,11 @@
 
 
+use bytes::Bytes;
 use chrono::{TimeZone, Utc, LocalResult, Duration};
 use command_macro::command;
 
 use sider_command::RESPType;
-use crate::{db::{ExpiryFlag, ExistenceFlag, DBError, DBString}, util::from_decimal_bytes};
+use crate::{db::{ExpiryFlag, ExistenceFlag, DBError, DBString, DBEntry}, util::from_decimal_bytes};
 
 use super::super::db::DB;
 
@@ -20,7 +21,7 @@ use super::super::db::DB;
     acl_categories = ("connection"),
     command_tips = ("request_policy:all_shards", "response_policy:all_succeeded"),
 )]
-pub fn set(args: Vec<RESPType>, db: &mut DB) -> RESPType {
+pub fn set(args: Vec<RESPType<Vec<u8>>>, db: &mut DB) -> RESPType<Bytes> {
     if args.len() < 2 {
         return RESPType::Error("wrong number of arguments".into());
     }
@@ -103,21 +104,19 @@ pub fn set(args: Vec<RESPType>, db: &mut DB) -> RESPType {
         Err(_) => panic!()
     };
 
-    let mut previous_value = RESPType::Null;
-
-    if return_previous_value && !entry.is_nil() {
-        previous_value = match entry.get_string() {
-            Ok(s) => RESPType::BulkString(s.to_bytes().to_vec()),
-            Err(DBError::WrongType) => return RESPType::Error("wrong type".into()),
-            Err(_) => panic!()
-        }
+    if !entry.is_string() && !entry.is_nil() {
+        return RESPType::Error("wrong type".into())
     }
 
-    entry.set_string(DBString::from_bytes(value.clone()));
-    
+    let previous = entry.set_string(DBString::from_bytes(value.clone()));
+
     if return_previous_value {
-        previous_value
+        match previous {
+            DBEntry::Nil => RESPType::Null,
+            DBEntry::String(s) => RESPType::BulkString(s.to_bytes()),
+            _ => unreachable!(),
+        }
     } else {
-        RESPType::SimpleString("OK".into())
+        RESPType::SimpleString(Bytes::from("OK"))
     }
 }

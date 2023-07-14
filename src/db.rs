@@ -4,23 +4,25 @@ use chrono::{DateTime, Utc};
 
 use crate::util::from_decimal_bytes;
 
+use bytes::Bytes;
+
 
 #[derive(Debug, PartialEq)]
 pub enum DBString {
     Integer(i64),
-    String(Vec<u8>)
+    String(Bytes)
 }
 
 impl DBString {
-    pub fn to_bytes(&self) -> Vec<u8> {
+    pub fn to_bytes(&self) -> Bytes {
         match self {
-            Self::String(v) => v.to_vec(),
-            Self::Integer(i) => i.to_string().into_bytes(),
+            Self::String(v) => v.clone(),
+            Self::Integer(i) => Bytes::from(i.to_string()),
         }
     }
 
     pub fn from_bytes(b: Vec<u8>) -> Self {
-        Self::String(b)
+        Self::String(Bytes::from(b))
     }
 
     pub fn incr_by(&mut self, n: i64) -> Result<i64, ()> {
@@ -102,8 +104,8 @@ impl DBEntry {
         }
     }
 
-    pub fn set_string(&mut self, v: DBString) {
-        *self = Self::String(v);
+    pub fn set_string(&mut self, v: DBString) -> DBEntry {
+        std::mem::replace(self, Self::String(v))
     }
 
     pub fn get_list(&mut self) -> Result<&mut VecDeque<Vec<u8>>, DBError> {
@@ -119,6 +121,13 @@ impl DBEntry {
 
     pub fn is_nil(&self) -> bool {
         self == &Self::Nil
+    }
+
+    pub fn is_string(&self) -> bool {
+        match self {
+            Self::String(_) => true,
+            _ => false,
+        }
     }
 }
 

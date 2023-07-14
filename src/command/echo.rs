@@ -1,4 +1,5 @@
 
+use bytes::Bytes;
 use command_macro::command;
 
 use sider_command::RESPType;
@@ -15,7 +16,7 @@ use super::super::db::DB;
     acl_categories = ("connection"),
     command_tips = ("request_policy:all_shards", "response_policy:all_succeeded"),
 )]
-pub fn echo<'a>(args: Vec<RESPType>, _: &mut DB) -> RESPType {
+pub fn echo(args: Vec<RESPType<Vec<u8>>>, _: &mut DB) -> RESPType<Bytes> {
     if args.len() != 1 {
         return RESPType::Error("wrong number of arguments".into());
     }
@@ -24,5 +25,7 @@ pub fn echo<'a>(args: Vec<RESPType>, _: &mut DB) -> RESPType {
         return RESPType::Error("wrong number of arguments".into());
     };
 
-    args[0].clone()
+    args[0].as_ref();
+
+    RESPType::Null
 }

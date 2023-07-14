@@ -1,2 +1,2 @@
 
-pub const PONG: &str = "PONG";
+pub const PONG: &[u8] = b"PONG";

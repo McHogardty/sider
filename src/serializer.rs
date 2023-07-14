@@ -1,10 +1,11 @@
 
 use std::io::{Error, Write};
 
+use bytes::Bytes;
 use sider_command::RESPType;
 
 
-pub fn serialize<O: Write>(v: &RESPType, output: &mut O) -> Result<(), Error> {
+pub fn serialize<O: Write>(v: &RESPType<Bytes>, output: &mut O) -> Result<(), Error> {
     match v {
         RESPType::SimpleString(s) => serialize_simple_string(s, output),
         RESPType::Error(s) => serialize_error(s, output),
@@ -16,7 +17,7 @@ pub fn serialize<O: Write>(v: &RESPType, output: &mut O) -> Result<(), Error> {
 }
 
 
-fn serialize_simple_string<O: Write>(v: &[u8], output: &mut O) -> Result<(), Error> {
+fn serialize_simple_string<O: Write>(v: &Bytes, output: &mut O) -> Result<(), Error> {
     output.write_all(b"+")?;
     output.write_all(v)?;
     output.write_all(b"\r")?;
@@ -24,9 +25,9 @@ fn serialize_simple_string<O: Write>(v: &[u8], output: &mut O) -> Result<(), Err
 }
 
 
-fn serialize_error<O: Write>(v: &str, output: &mut O) -> Result<(), Error>  {
+fn serialize_error<O: Write>(v: &Bytes, output: &mut O) -> Result<(), Error>  {
     output.write_all(b"-")?;
-    output.write_all(v.as_bytes())?;
+    output.write_all(v)?;
     output.write_all(b"\r")?;
     output.write_all(b"\n")
 }
@@ -40,7 +41,7 @@ fn serialize_integer<O: Write>(v: &i64, output: &mut O) -> Result<(), Error> {
 } 
 
 
-fn serialize_bulk_string<O: Write>(v: &[u8], output: &mut O) -> Result<(), Error> {
+fn serialize_bulk_string<O: Write>(v: &Bytes, output: &mut O) -> Result<(), Error> {
     output.write_all(b"$")?;
     output.write_all(v.len().to_string().as_bytes())?;
     output.write_all(b"\r")?;
@@ -52,7 +53,7 @@ fn serialize_bulk_string<O: Write>(v: &[u8], output: &mut O) -> Result<(), Error
 }
 
 
-fn serialize_array<O: Write>(v: &[RESPType], output: &mut O) -> Result<(), Error> {
+fn serialize_array<O: Write>(v: &[RESPType<Bytes>], output: &mut O) -> Result<(), Error> {
     output.write_all(b"*")?;
     output.write_all(v.len().to_string().as_bytes())?;
     output.write_all(b"\r")?;

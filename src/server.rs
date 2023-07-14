@@ -4,6 +4,7 @@ use std::error::Error;
 use std::io::{Read, ErrorKind};
 use std::time::{Duration, Instant};
 
+use bytes::Bytes;
 use mio::{Poll, Events, Token, Interest, Waker};
 use mio::net::{TcpListener, TcpStream};
 
@@ -26,25 +27,25 @@ struct Client {
 }
 
 
-fn handle_command(db: &mut DB, command: RESPType) -> RESPType {
+fn handle_command(db: &mut DB, command: RESPType<Vec<u8>>) -> RESPType<Bytes> {
     let RESPType::Array(mut v) = command else {
-        return RESPType::Error(String::from("Invalid command format, expecting array of bulk strings."));
+        return RESPType::Error(Bytes::from("Invalid command format, expecting array of bulk strings."));
     };
 
     if v.len() == 0 {
-        return RESPType::Error(String::from("Invalid command format, array must have at least one element."));
+        return RESPType::Error(Bytes::from("Invalid command format, array must have at least one element."));
     }
 
     let command_name = v.remove(0);
 
     let RESPType::BulkString(mut s) = command_name else {
-        return RESPType::Error(String::from("Invalid command format, expecting array of bulk strings."));
+        return RESPType::Error(Bytes::from("Invalid command format, expecting array of bulk strings."));
     };
 
     s.make_ascii_lowercase();
 
     let Some(command) = COMMAND_TABLE.get(&s) else {
-        return RESPType::Error(String::from("Invalid command."));
+        return RESPType::Error(Bytes::from("Invalid command."));
     };
 
     return (command.handler)(v, db);
@@ -68,7 +69,7 @@ impl Server {
         let mut db = DB::new();
         let mut poll = Poll::new()?;
         let mut events = Events::with_capacity(128);
-        let mut client_request_queue: VecDeque<(Token, RESPType)> = VecDeque::new();
+        let mut client_request_queue: VecDeque<(Token, RESPType<Vec<u8>>)> = VecDeque::new();
 
         let mut listener = TcpListener::bind("127.0.0.1:6379".parse().unwrap())?;
         let client_request_waker = Waker::new(poll.registry(), CLIENT_REQUEST_QUEUE)?;
@@ -101,7 +102,7 @@ impl Server {
                         
                         self.clients.insert(next_writable_token, Client {
                             connection,
-                            query_buffer: [0; 16384],
+                            query_buffer: [0; 1024*16],
                         });
 
                         next_writable_token.0 += 1;
@@ -133,7 +134,7 @@ impl Server {
                             let result = RESPParser::parse(&client.query_buffer);
 
                             let response = match result {
-                                RESPType::Error(_) => result,
+                                RESPType::Error(e) => RESPType::Error(Bytes::from(e)),
                                 r => handle_command(&mut db, r)
                             };
         

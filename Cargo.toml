@@ -14,3 +14,4 @@ phf_macros = "0.11.1"
 command_macro = { version = "0.1.0", path = "command_macro" }
 sider_command = { path = "sider_command" }
 chrono = "0.4.26"
+bytes = "1.4.0"

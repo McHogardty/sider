@@ -2,6 +2,7 @@
 
 use std::collections::VecDeque;
 
+use bytes::Bytes;
 use command_macro::command;
 
 use sider_command::RESPType;
@@ -21,7 +22,7 @@ use super::super::db::DB;
     acl_categories = ("connection"),
     command_tips = ("request_policy:all_shards", "response_policy:all_succeeded"),
 )]
-pub fn lpush(args: Vec<RESPType>, db: &mut DB) -> RESPType {
+pub fn lpush(args: Vec<RESPType<Vec<u8>>>, db: &mut DB) -> RESPType<Bytes> {
     if args.len() < 2 {
         return RESPType::Error("wrong number of arguments".into());
     }

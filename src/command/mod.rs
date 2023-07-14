@@ -18,7 +18,7 @@ mod set;
 
 
 pub(crate) const COMMAND_TABLE: Map<&'static [u8], base::Command> = phf_map! {
-    b"command" => command::CommandImpl::into_command(),
+    // b"command" => command::CommandImpl::into_command(),
     b"decr" => decr::Decr::into_command(),
     b"del" => del::Del::into_command(),
     b"echo" => echo::Echo::into_command(),

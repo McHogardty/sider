@@ -13,7 +13,7 @@ pub struct RESPParser<'a> {
 
 
 impl<'a> RESPParser<'a> {
-    pub fn parse(s: &'a [u8]) -> RESPType {
+    pub fn parse(s: &'a [u8]) -> RESPType<Vec<u8>> {
         let mut parser = Self {
             position: 0,
             bytes: s,
@@ -22,7 +22,7 @@ impl<'a> RESPParser<'a> {
         parser.parse_until_complete()
     }
 
-    fn parse_until_complete(&mut self) -> RESPType {
+    fn parse_until_complete(&mut self) -> RESPType<Vec<u8>> {
         debug!("Parse until complete.");
 
         if let Some(first_byte) = self.bytes.get(self.position) {
@@ -52,7 +52,7 @@ impl<'a> RESPParser<'a> {
         }
     }
 
-    fn parse_simple_string(&mut self) -> RESPType {
+    fn parse_simple_string(&mut self) -> RESPType<Vec<u8>> {
         debug!("Parsing simple string.");
 
         let start = self.position;
@@ -70,7 +70,7 @@ impl<'a> RESPParser<'a> {
         RESPType::SimpleString(self.bytes[start..self.position - 2].to_vec())
     }
 
-    fn parse_integer(&mut self) -> RESPType {
+    fn parse_integer(&mut self) -> RESPType<Vec<u8>> {
         debug!("Parsing integer.");
 
         let start = self.position;
@@ -97,7 +97,7 @@ impl<'a> RESPParser<'a> {
 
     }
 
-    fn parse_error(&mut self) -> RESPType {
+    fn parse_error(&mut self) -> RESPType<Vec<u8>> {
         debug!("Parsing error.");
 
         let start = self.position;
@@ -113,13 +113,13 @@ impl<'a> RESPParser<'a> {
         self.position += 1;
         
         if let Ok(parsed_error) = std::str::from_utf8(&self.bytes[start..self.position - 2]) {
-            RESPType::Error(parsed_error.to_owned())
+            RESPType::Error(parsed_error.into())
         } else {
             RESPType::Error("Unable to parse error, invalid byte sequence.".into())
         }
     }
 
-    fn parse_array(&mut self) -> RESPType {
+    fn parse_array(&mut self) -> RESPType<Vec<u8>> {
         debug!("Parsing array.");
 
         let start = self.position;
@@ -178,7 +178,7 @@ impl<'a> RESPParser<'a> {
         RESPType::Array(items)
     }
 
-    fn parse_bulk_string(&mut self) -> RESPType {
+    fn parse_bulk_string(&mut self) -> RESPType<Vec<u8>> {
         debug!("Parsing bulk string.");
 
         let start = self.position;

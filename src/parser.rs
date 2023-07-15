@@ -1,19 +1,20 @@
 
 
+use bytes::Bytes;
 use log::debug;
 
 use sider_command::RESPType;
 
 
 #[derive(Default)]
-pub struct RESPParser<'a> {
+pub struct RESPParser {
     position: usize,
-    bytes: &'a[u8]
+    bytes: Bytes
 }
 
 
-impl<'a> RESPParser<'a> {
-    pub fn parse(s: &'a [u8]) -> RESPType<Vec<u8>> {
+impl RESPParser {
+    pub fn parse(s: Bytes) -> RESPType<Bytes> {
         let mut parser = Self {
             position: 0,
             bytes: s,
@@ -22,7 +23,7 @@ impl<'a> RESPParser<'a> {
         parser.parse_until_complete()
     }
 
-    fn parse_until_complete(&mut self) -> RESPType<Vec<u8>> {
+    fn parse_until_complete(&mut self) -> RESPType<Bytes> {
         debug!("Parse until complete.");
 
         if let Some(first_byte) = self.bytes.get(self.position) {
@@ -52,7 +53,7 @@ impl<'a> RESPParser<'a> {
         }
     }
 
-    fn parse_simple_string(&mut self) -> RESPType<Vec<u8>> {
+    fn parse_simple_string(&mut self) -> RESPType<Bytes> {
         debug!("Parsing simple string.");
 
         let start = self.position;
@@ -67,10 +68,10 @@ impl<'a> RESPParser<'a> {
 
         self.position += 1;
 
-        RESPType::SimpleString(self.bytes[start..self.position - 2].to_vec())
+        RESPType::SimpleString(self.bytes.slice(start..self.position - 2).into())
     }
 
-    fn parse_integer(&mut self) -> RESPType<Vec<u8>> {
+    fn parse_integer(&mut self) -> RESPType<Bytes> {
         debug!("Parsing integer.");
 
         let start = self.position;
@@ -97,7 +98,7 @@ impl<'a> RESPParser<'a> {
 
     }
 
-    fn parse_error(&mut self) -> RESPType<Vec<u8>> {
+    fn parse_error(&mut self) -> RESPType<Bytes> {
         debug!("Parsing error.");
 
         let start = self.position;
@@ -112,14 +113,10 @@ impl<'a> RESPParser<'a> {
 
         self.position += 1;
         
-        if let Ok(parsed_error) = std::str::from_utf8(&self.bytes[start..self.position - 2]) {
-            RESPType::Error(parsed_error.into())
-        } else {
-            RESPType::Error("Unable to parse error, invalid byte sequence.".into())
-        }
+        RESPType::Error(self.bytes.slice(start..self.position - 2))
     }
 
-    fn parse_array(&mut self) -> RESPType<Vec<u8>> {
+    fn parse_array(&mut self) -> RESPType<Bytes> {
         debug!("Parsing array.");
 
         let start = self.position;
@@ -178,7 +175,7 @@ impl<'a> RESPParser<'a> {
         RESPType::Array(items)
     }
 
-    fn parse_bulk_string(&mut self) -> RESPType<Vec<u8>> {
+    fn parse_bulk_string(&mut self) -> RESPType<Bytes> {
         debug!("Parsing bulk string.");
 
         let start = self.position;
@@ -232,7 +229,7 @@ impl<'a> RESPParser<'a> {
 
         self.position += 1;
 
-        RESPType::BulkString(self.bytes[string_start..self.position - 2].to_vec())
+        RESPType::BulkString(self.bytes.slice(string_start..self.position - 2).into())
     }
 }
 
@@ -244,13 +241,13 @@ mod tests {
 
     #[test]
     fn test_null() {
-        assert_eq!(RESPParser::parse(b"$-1\r\n"), RESPType::Null);
+        assert_eq!(RESPParser::parse("$-1\r\n".into()), RESPType::Null);
     }
 
     #[test]
     fn test_array() {
         assert_eq!(
-            RESPParser::parse(b"*1\r\n$4\r\nping\r\n"),
+            RESPParser::parse("*1\r\n$4\r\nping\r\n".into()),
             RESPType::Array(
                 vec![RESPType::BulkString("ping".into())]
             )
@@ -260,7 +257,7 @@ mod tests {
     #[test]
     fn test_array_multiple_itemse() {
         assert_eq!(
-            RESPParser::parse(b"*2\r\n$4\r\necho\r\n$11\r\nhello world\r\n"),
+            RESPParser::parse("*2\r\n$4\r\necho\r\n$11\r\nhello world\r\n".into()),
             RESPType::Array(
                 vec![
                     RESPType::BulkString("echo".into()),
@@ -273,7 +270,7 @@ mod tests {
     #[test]
     fn test_simple_string() {
         assert_eq!(
-            RESPParser::parse(b"+OK\r\n"),
+            RESPParser::parse("+OK\r\n".into()),
             RESPType::SimpleString("OK".into())
         )
     }
@@ -281,7 +278,7 @@ mod tests {
     #[test]
     fn test_error() {
         assert_eq!(
-            RESPParser::parse(b"-Error message\r\n"),
+            RESPParser::parse("-Error message\r\n".into()),
             RESPType::Error("Error message".into())
         )
     }
@@ -289,7 +286,7 @@ mod tests {
     #[test]
     fn test_empty_bulk_string() {
         assert_eq!(
-            RESPParser::parse(b"$0\r\n\r\n"),
+            RESPParser::parse("$0\r\n\r\n".into()),
             RESPType::BulkString("".into())
         )
     }
@@ -297,7 +294,7 @@ mod tests {
     #[test]
     fn test_hello_world() {
         assert_eq!(
-            RESPParser::parse(b"+hello world\r\n"),
+            RESPParser::parse("+hello world\r\n".into()),
             RESPType::SimpleString("hello world".into())
         )
     }
@@ -306,7 +303,7 @@ mod tests {
     #[test]
     fn test_invalid_input() {
         assert_eq!(
-            RESPParser::parse(b"bad string"),
+            RESPParser::parse("bad string".into()),
             RESPType::Error("Unable to parse input due to invalid byte.".into()),
         )
 

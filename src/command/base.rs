@@ -6,7 +6,7 @@ use super::super::db::DB;
 
 pub struct Command<'a> {
     pub name: &'a str,
-    pub handler: fn(Vec<RESPType<Vec<u8>>>, &mut DB) -> RESPType<Bytes>,
+    pub handler: fn(Vec<RESPType<Bytes>>, &mut DB) -> RESPType<Bytes>,
     pub arity: i64,
     pub flags: &'a [Flag],
     pub first_key: u64,

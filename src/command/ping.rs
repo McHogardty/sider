@@ -16,6 +16,6 @@ use super::{super::db::DB, responses};
     acl_categories = ("connection"),
     command_tips = ("request_policy:all_shards", "response_policy:all_succeeded"),
 )]
-pub fn ping(_: Vec<RESPType<Vec<u8>>>, _: &mut DB) -> RESPType<Bytes> {
+pub fn ping(_: Vec<RESPType<Bytes>>, _: &mut DB) -> RESPType<Bytes> {
     RESPType::SimpleString(responses::PONG.into())
 }

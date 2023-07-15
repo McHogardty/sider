@@ -21,10 +21,6 @@ impl DBString {
         }
     }
 
-    pub fn from_bytes(b: Vec<u8>) -> Self {
-        Self::String(Bytes::from(b))
-    }
-
     pub fn incr_by(&mut self, n: i64) -> Result<i64, ()> {
         let mut i = match self {
             Self::Integer(i) => *i,
@@ -51,6 +47,13 @@ impl From<i64> for DBString {
 }
 
 
+impl From<Bytes> for DBString {
+    fn from(value: Bytes) -> Self {
+        Self::String(value)
+    }
+}
+
+
 /// The underlying database implementation.
 /// 
 /// Each key/value pair in the database is stored as a mapping from a String to a DBEntry.
@@ -72,10 +75,10 @@ impl From<i64> for DBString {
 #[derive(Debug)]
 pub struct DB {
     /// The money. This map stores all of the data that is stored in the database.
-    map: HashMap<Rc<Vec<u8>>, DBEntry>,
+    map: HashMap<Bytes, DBEntry>,
     /// Maintains track of all of the key/value pairs in the map which have expiry
     /// values set.
-    expiring_entries: HashMap<Rc<Vec<u8>>, DateTime<Utc>>,
+    expiring_entries: HashMap<Bytes, DateTime<Utc>>,
 }
 
 
@@ -188,18 +191,18 @@ impl DB {
 
     /// Determine whether or not a key exists in the database. Returns a boolean indicating
     /// whether or not this is the case.
-    pub fn exists(&self, key: &Vec<u8>) -> bool {
+    pub fn exists(&self, key: &Bytes) -> bool {
         self.map.contains_key(key)
     }
 
     /// Delete a key from the database. Returns a boolean indicating whether or not the key
     /// actually existed.
-    pub fn delete(&mut self, key: &Vec<u8>) -> bool {
+    pub fn delete(&mut self, key: &Bytes) -> bool {
         self.expiring_entries.remove(key);
         self.map.remove(key).is_some()
     }
 
-    pub fn get(&mut self, key: &Vec<u8>) -> Option<&DBEntry> {
+    pub fn get(&mut self, key: &Bytes) -> Option<&DBEntry> {
         if let Some(e) = self.expiring_entries.get(key) {
             if e <= &Utc::now() {
                 self.expiring_entries.remove(key);
@@ -211,20 +214,18 @@ impl DB {
         self.map.get(key)
     }
 
-    pub fn get_or_insert(&mut self, key: Vec<u8>, expiry: ExpiryFlag, existence_check: ExistenceFlag) -> Result<&mut DBEntry, DBError> {
-        let k = Rc::new(key);
-
+    pub fn get_or_insert(&mut self, key: Bytes, expiry: ExpiryFlag, existence_check: ExistenceFlag) -> Result<&mut DBEntry, DBError> {
         match expiry {
             ExpiryFlag::KeepTTL => {},
             ExpiryFlag::None => {
-                self.expiring_entries.remove(&k);
+                self.expiring_entries.remove(&key);
             },
             ExpiryFlag::Some(ex) => {
-                self.expiring_entries.insert(Rc::clone(&k), ex);
+                self.expiring_entries.insert(key.clone(), ex);
             }
         }
         
-        match self.map.entry(k) {
+        match self.map.entry(key) {
             Entry::Occupied(e) => {
                 if existence_check == ExistenceFlag::Nx {
                     return Err(DBError::AlreadyExists);

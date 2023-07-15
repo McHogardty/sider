@@ -22,16 +22,16 @@ use super::super::db::DB;
     acl_categories = ("connection"),
     command_tips = ("request_policy:all_shards", "response_policy:all_succeeded"),
 )]
-pub fn lpush(args: Vec<RESPType<Vec<u8>>>, db: &mut DB) -> RESPType<Bytes> {
+pub fn lpush(mut args: Vec<RESPType<Bytes>>, db: &mut DB) -> RESPType<Bytes> {
     if args.len() < 2 {
         return RESPType::Error("wrong number of arguments".into());
     }
 
-    let RESPType::BulkString(key) = &args[0] else {
+    let RESPType::BulkString(key) = args.remove(0) else {
         return RESPType::Error("Invalid command format, expecting array of bulk strings.".into());
     };
 
-    let entry = db.get_or_insert(key.clone(), ExpiryFlag::KeepTTL, ExistenceFlag::None).unwrap();
+    let entry = db.get_or_insert(key, ExpiryFlag::KeepTTL, ExistenceFlag::None).unwrap();
 
     let l = match entry {
         DBEntry::List(l) => l,

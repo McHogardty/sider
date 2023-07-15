@@ -1,10 +1,11 @@
 
+use core::num;
 use std::collections::{HashMap, VecDeque};
 use std::error::Error;
 use std::io::{Read, ErrorKind};
 use std::time::{Duration, Instant};
 
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use mio::{Poll, Events, Token, Interest, Waker};
 use mio::net::{TcpListener, TcpStream};
 
@@ -23,11 +24,10 @@ const CLIENT_REQUEST_QUEUE: Token = Token(1);
 #[derive(Debug)]
 struct Client {
     connection: TcpStream,
-    query_buffer: [u8; 1024*16],
 }
 
 
-fn handle_command(db: &mut DB, command: RESPType<Vec<u8>>) -> RESPType<Bytes> {
+fn handle_command(db: &mut DB, command: RESPType<Bytes>) -> RESPType<Bytes> {
     let RESPType::Array(mut v) = command else {
         return RESPType::Error(Bytes::from("Invalid command format, expecting array of bulk strings."));
     };
@@ -38,11 +38,11 @@ fn handle_command(db: &mut DB, command: RESPType<Vec<u8>>) -> RESPType<Bytes> {
 
     let command_name = v.remove(0);
 
-    let RESPType::BulkString(mut s) = command_name else {
+    let RESPType::BulkString(s) = command_name else {
         return RESPType::Error(Bytes::from("Invalid command format, expecting array of bulk strings."));
     };
 
-    s.make_ascii_lowercase();
+    let s = s.to_ascii_lowercase();
 
     let Some(command) = COMMAND_TABLE.get(&s) else {
         return RESPType::Error(Bytes::from("Invalid command."));
@@ -69,7 +69,7 @@ impl Server {
         let mut db = DB::new();
         let mut poll = Poll::new()?;
         let mut events = Events::with_capacity(128);
-        let mut client_request_queue: VecDeque<(Token, RESPType<Vec<u8>>)> = VecDeque::new();
+        let mut client_request_queue: VecDeque<(Token, RESPType<Bytes>)> = VecDeque::new();
 
         let mut listener = TcpListener::bind("127.0.0.1:6379".parse().unwrap())?;
         let client_request_waker = Waker::new(poll.registry(), CLIENT_REQUEST_QUEUE)?;
@@ -102,7 +102,6 @@ impl Server {
                         
                         self.clients.insert(next_writable_token, Client {
                             connection,
-                            query_buffer: [0; 1024*16],
                         });
 
                         next_writable_token.0 += 1;
@@ -126,7 +125,9 @@ impl Server {
                         };
 
                         if event.is_readable() {
-                            let num_bytes_read = match client.connection.read(&mut client.query_buffer) {
+                            let mut query_buffer = BytesMut::zeroed(1024*16);
+
+                            let num_bytes_read = match client.connection.read(&mut query_buffer) {
                                 Ok(n) => n,
                                 Err(e) if e.kind() == ErrorKind::WouldBlock => break,
                                 Err(e) => return Err(e.into()),
@@ -138,7 +139,7 @@ impl Server {
                                 continue;
                             }
 
-                            let result = RESPParser::parse(&client.query_buffer);
+                            let result = RESPParser::parse(query_buffer.into());
 
                             client_request_queue.push_back((token, result));
                             client_request_waker.wake()?;

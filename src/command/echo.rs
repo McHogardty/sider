@@ -16,16 +16,14 @@ use super::super::db::DB;
     acl_categories = ("connection"),
     command_tips = ("request_policy:all_shards", "response_policy:all_succeeded"),
 )]
-pub fn echo(args: Vec<RESPType<Vec<u8>>>, _: &mut DB) -> RESPType<Bytes> {
+pub fn echo(mut args: Vec<RESPType<Bytes>>, _: &mut DB) -> RESPType<Bytes> {
     if args.len() != 1 {
         return RESPType::Error("wrong number of arguments".into());
     }
 
-    let RESPType::BulkString(_)= &args[0] else {
+    let v @ RESPType::BulkString(_) = args.remove(0) else {
         return RESPType::Error("wrong number of arguments".into());
     };
 
-    args[0].as_ref();
-
-    RESPType::Null
+    v
 }

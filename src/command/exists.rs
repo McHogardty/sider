@@ -16,7 +16,7 @@ use super::super::db::DB;
     acl_categories = ("connection"),
     command_tips = ("request_policy:all_shards", "response_policy:all_succeeded"),
 )]
-pub fn exists(args: Vec<RESPType<Vec<u8>>>, db: &mut DB) -> RESPType<Bytes> {
+pub fn exists(args: Vec<RESPType<Bytes>>, db: &mut DB) -> RESPType<Bytes> {
     if args.len() < 1 {
         return RESPType::Error("wrong number of arguments".into());
     }
@@ -28,7 +28,7 @@ pub fn exists(args: Vec<RESPType<Vec<u8>>>, db: &mut DB) -> RESPType<Bytes> {
             return RESPType::Error("Invalid command format, expecting array of bulk strings.".into());
         };
 
-        total += db.exists(&k) as i64;
+        total += db.exists(&k.into()) as i64;
     }
 
     RESPType::Integer(total)

@@ -5,7 +5,7 @@ use chrono::{TimeZone, Utc, LocalResult, Duration};
 use command_macro::command;
 
 use sider_command::RESPType;
-use crate::{db::{ExpiryFlag, ExistenceFlag, DBError, DBString, DBEntry}, util::from_decimal_bytes};
+use crate::{db::{ExpiryFlag, ExistenceFlag, DBError, DBEntry}, util::from_decimal_bytes};
 
 use super::super::db::DB;
 
@@ -21,20 +21,22 @@ use super::super::db::DB;
     acl_categories = ("connection"),
     command_tips = ("request_policy:all_shards", "response_policy:all_succeeded"),
 )]
-pub fn set(args: Vec<RESPType<Vec<u8>>>, db: &mut DB) -> RESPType<Bytes> {
+pub fn set(mut args: Vec<RESPType<Bytes>>, db: &mut DB) -> RESPType<Bytes> {
     if args.len() < 2 {
         return RESPType::Error("wrong number of arguments".into());
     }
 
-    let RESPType::BulkString(key) = &args[0] else {
+    // Remove swaps the last element to the position, so we remove the value first, so that
+    // the key will still be in the first position.
+    let RESPType::BulkString(value) = args.remove(1) else {
         return RESPType::Error("Invalid command format, expecting array of bulk strings.".into());
     };
 
-    let RESPType::BulkString(value) = &args[1] else {
+    let RESPType::BulkString(key) = args.remove(0) else {
         return RESPType::Error("Invalid command format, expecting array of bulk strings.".into());
     };
 
-    let mut remaining = args[2..].iter().peekable();
+    let mut remaining = args.iter().peekable();
 
     let mut expiry = ExpiryFlag::None;
     let mut existence_flag = ExistenceFlag::None;
@@ -98,7 +100,7 @@ pub fn set(args: Vec<RESPType<Vec<u8>>>, db: &mut DB) -> RESPType<Bytes> {
         }
     }
 
-    let entry = match db.get_or_insert(key.clone(), expiry, existence_flag) {
+    let entry = match db.get_or_insert(key, expiry, existence_flag) {
         Ok(e) => e,
         Err(DBError::AlreadyExists | DBError::DoesNotExist) => return RESPType::Null,
         Err(_) => panic!()
@@ -108,7 +110,7 @@ pub fn set(args: Vec<RESPType<Vec<u8>>>, db: &mut DB) -> RESPType<Bytes> {
         return RESPType::Error("wrong type".into())
     }
 
-    let previous = entry.set_string(DBString::from_bytes(value.clone()));
+    let previous = entry.set_string(value.into());
 
     if return_previous_value {
         match previous {

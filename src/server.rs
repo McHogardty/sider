@@ -2,7 +2,7 @@
 
 use std::collections::VecDeque;
 use std::error::Error;
-use std::io::{BufWriter, Read, ErrorKind};
+use std::io::{BufWriter, Read, ErrorKind, Write};
 use std::time::{Duration, Instant};
 
 use bytes::{Bytes, BytesMut};
@@ -23,7 +23,7 @@ const CLIENT_REQUEST_QUEUE: Token = Token(1);
 
 #[derive(Debug)]
 struct Client {
-    connection: TcpStream,
+    output_buffer: BufWriter<TcpStream>,
 }
 
 
@@ -100,7 +100,7 @@ impl Server {
                         poll.registry().register(&mut connection, Token(self.clients.len() + 2), Interest::READABLE | Interest::WRITABLE)?;
 
                         self.clients.push(Some(Client {
-                            connection, 
+                            output_buffer: BufWriter::new(connection),
                         }));
 
                     },
@@ -111,12 +111,14 @@ impl Server {
                                 r => handle_command(&mut db, r)
                             };
 
-                            let conn = match &mut self.clients[client_token.0 - 2] {
-                                Some(client) => &mut client.connection,
+                            let output = match &mut self.clients[client_token.0 - 2] {
+                                Some(client) => &mut client.output_buffer,
                                 None => continue,
                             };
         
-                            serialize(&response, &mut BufWriter::new(conn))?;
+                            serialize(&response, output)?;
+                            output.flush()?;
+
                         }
                     },
                     token => {
@@ -130,14 +132,14 @@ impl Server {
                         if event.is_readable() {
                             let mut query_buffer = BytesMut::zeroed(1024*16);
 
-                            let num_bytes_read = match client.connection.read(&mut query_buffer) {
+                            let num_bytes_read = match client.output_buffer.get_mut().read(&mut query_buffer) {
                                 Ok(n) => n,
                                 Err(e) if e.kind() == ErrorKind::WouldBlock => break,
                                 Err(e) => return Err(e.into()),
                             };
 
                             if num_bytes_read == 0 {
-                                poll.registry().deregister(&mut client.connection)?;
+                                poll.registry().deregister(client.output_buffer.get_mut())?;
                                 self.clients[token.0 - 2] = None;
                                 continue;
                             }

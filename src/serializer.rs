@@ -1,5 +1,5 @@
 
-use std::io::{Error, Write, BufWriter};
+use std::io::{Error, Write};
 
 use bytes::Bytes;
 use sider_command::RESPType;

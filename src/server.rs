@@ -54,14 +54,14 @@ fn handle_command(db: &mut DB, command: RESPType<Bytes>) -> RESPType<Bytes> {
 
 
 pub struct Server {
-    clients: Vec<Client>,
+    clients: Vec<Option<Client>>,
 }
 
 
 impl Server {
     pub fn build() -> Self {
         Server {
-            clients: Vec::new(),
+            clients: Vec::with_capacity(100),
         }
     }
 
@@ -98,13 +98,13 @@ impl Server {
                                 return Err(e.into());
                             }
                         };
-                        poll.registry().register(&mut connection, next_writable_token, Interest::READABLE | Interest::WRITABLE)?;
                         
-                        self.clients.insert(next_writable_token.0 - 2, Client {
-                            connection,
-                        });
+                        poll.registry().register(&mut connection, Token(self.clients.len() + 2), Interest::READABLE | Interest::WRITABLE)?;
+                        
+                        self.clients.push(Some(Client {
+                            connection, 
+                        }));
 
-                        next_writable_token.0 += 1;
                     },
                     CLIENT_REQUEST_QUEUE => {
                         while let Some((client_token, request)) = client_request_queue.pop_front() {    
@@ -112,12 +112,17 @@ impl Server {
                                 RESPType::Error(e) => RESPType::Error(Bytes::from(e)),
                                 r => handle_command(&mut db, r)
                             };
+
+                            let conn = match &mut self.clients[client_token.0 - 2] {
+                                Some(client) => &mut client.connection,
+                                None => continue,
+                            };
         
-                            serialize(&response, &mut self.clients.get_mut(client_token.0 - 2).unwrap().connection)?;
+                            serialize(&response, conn)?;
                         }
                     },
                     token => {
-                        let client = match self.clients.get_mut(token.0 - 2) {
+                        let client = match &mut self.clients[token.0 - 2] {
                             None => {
                                 continue;
                             },
@@ -135,7 +140,7 @@ impl Server {
 
                             if num_bytes_read == 0 {
                                 poll.registry().deregister(&mut client.connection)?;
-                                self.clients.remove(token.0 - 2);
+                                self.clients[token.0 - 2] = None;
                                 continue;
                             }
 

@@ -1,6 +1,6 @@
 
-use core::num;
-use std::collections::{HashMap, VecDeque};
+
+use std::collections::VecDeque;
 use std::error::Error;
 use std::io::{Read, ErrorKind};
 use std::time::{Duration, Instant};
@@ -54,14 +54,14 @@ fn handle_command(db: &mut DB, command: RESPType<Bytes>) -> RESPType<Bytes> {
 
 
 pub struct Server {
-    clients: HashMap<Token, Client>,
+    clients: Vec<Client>,
 }
 
 
 impl Server {
     pub fn build() -> Self {
         Server {
-            clients: HashMap::new(),
+            clients: Vec::new(),
         }
     }
 
@@ -100,7 +100,7 @@ impl Server {
                         };
                         poll.registry().register(&mut connection, next_writable_token, Interest::READABLE | Interest::WRITABLE)?;
                         
-                        self.clients.insert(next_writable_token, Client {
+                        self.clients.insert(next_writable_token.0 - 2, Client {
                             connection,
                         });
 
@@ -113,11 +113,11 @@ impl Server {
                                 r => handle_command(&mut db, r)
                             };
         
-                            serialize(&response, &mut self.clients.get_mut(&client_token).unwrap().connection)?;
+                            serialize(&response, &mut self.clients.get_mut(client_token.0 - 2).unwrap().connection)?;
                         }
                     },
                     token => {
-                        let client = match self.clients.get_mut(&token) {
+                        let client = match self.clients.get_mut(token.0 - 2) {
                             None => {
                                 continue;
                             },
@@ -135,7 +135,7 @@ impl Server {
 
                             if num_bytes_read == 0 {
                                 poll.registry().deregister(&mut client.connection)?;
-                                self.clients.remove(&token);
+                                self.clients.remove(token.0 - 2);
                                 continue;
                             }
 

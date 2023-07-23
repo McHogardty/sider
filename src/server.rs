@@ -2,7 +2,7 @@
 
 use std::collections::VecDeque;
 use std::error::Error;
-use std::io::{Read, ErrorKind};
+use std::io::{BufWriter, Read, ErrorKind};
 use std::time::{Duration, Instant};
 
 use bytes::{Bytes, BytesMut};
@@ -73,8 +73,6 @@ impl Server {
 
         let mut listener = TcpListener::bind("127.0.0.1:6379".parse().unwrap())?;
         let client_request_waker = Waker::new(poll.registry(), CLIENT_REQUEST_QUEUE)?;
-
-        let mut next_writable_token = Token(2);
         
         poll.registry().register(&mut listener, SERVER, Interest::READABLE).unwrap();
         
@@ -100,7 +98,7 @@ impl Server {
                         };
                         
                         poll.registry().register(&mut connection, Token(self.clients.len() + 2), Interest::READABLE | Interest::WRITABLE)?;
-                        
+
                         self.clients.push(Some(Client {
                             connection, 
                         }));
@@ -118,7 +116,7 @@ impl Server {
                                 None => continue,
                             };
         
-                            serialize(&response, conn)?;
+                            serialize(&response, &mut BufWriter::new(conn))?;
                         }
                     },
                     token => {

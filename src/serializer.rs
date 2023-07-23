@@ -1,5 +1,5 @@
 
-use std::io::{Error, Write};
+use std::io::{Error, Write, BufWriter};
 
 use bytes::Bytes;
 use sider_command::RESPType;
@@ -15,7 +15,6 @@ pub fn serialize<O: Write>(v: &RESPType<Bytes>, output: &mut O) -> Result<(), Er
         RESPType::Null => serialize_null(output),
     }
 }
-
 
 fn serialize_simple_string<O: Write>(v: &Bytes, output: &mut O) -> Result<(), Error> {
     output.write_all(b"+")?;
@@ -65,7 +64,6 @@ fn serialize_array<O: Write>(v: &[RESPType<Bytes>], output: &mut O) -> Result<()
 
     Ok(())
 }
-
 
 fn serialize_null<O: Write>(output: &mut O) -> Result<(), Error> {
     output.write_all(b"$")?;
